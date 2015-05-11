@@ -11,7 +11,7 @@ use Nette;
 use Nette\Object;
 use Seberm\PayPal\Utils;
 use Nette\Iterators\CachingIterator;
-use Nette\ArrayHash;
+use Nette\Utils\ArrayHash;
 
 
 class Response extends Object
@@ -232,7 +232,7 @@ class Response extends Object
 	private function deformatNVP($query)
 	{
                 $data = '';
-                
+
 		parse_str($query, $data);
 		return $data;
 	}
