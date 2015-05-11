@@ -1,89 +1,66 @@
 # PayPal Component
 
+## Installation
+
+The best way to install PayPal Component is using  [Composer](http://getcomposer.org/):
+
+```sh
+$ composer require seberm/paypal-component
+```
+
 ##Usage
 
-###Config
+Register extension in your `config.neon` file:
 
-####Using Extension (Nette 2.1+)
 ```yml
 paypal:
 	api:
 		username: 'seberm_1332081338_biz_api1.gmail.com'
 		password: '1332081363'
 		signature: 'AWiH1IO0zFZrEQbbn0JwDZHbWukIAebmYjpOylRCqBGGgztea2bku.N4'
-	sandbox: true # default is false 
+	sandbox: true # default is false
 
 extensions:
 	paypal: Seberm\DI\PayPalExtension
 ```
 
-####or manually:
-```yml
-parameters:
-	paypal:
-		api:
-			username: 'seberm_1332081338_biz_api1.gmail.com'
-			password: '1332081363'
-			signature: 'AWiH1IO0zFZrEQbbn0JwDZHbWukIAebmYjpOylRCqBGGgztea2bku.N4'
-		sandbox: true
-
-factories:
-	paypalOrderButton:
-		implement: Seberm\Components\PayPal\Buttons\IOrderFactory
-		setup:
-			- setCredentials(%paypal.api%)
-			- setSandBox(%paypal.sandbox%)
-```
-
-###Presenter
+Then in your presenter:
 
 ```php
 
-/**
- * @var \Seberm\Components\PayPal\Buttons\IOrderFactory $orderFactory
- */
-private $orderFactory;
+  /** @var IOrderFactory @inject */
+  public $factory;
 
-/**
- * @var \Seberm\Components\PayPal\Buttons\Order
- */
-private $orderButton;
+  protected function createComponentPaypal()
+  {
+    $control = $this->factory->create();
 
+    // Will be called after user completes all steps on Paypal site.
+    $control->onConfirmation[] = [$this, 'confirmed'];
 
-/**
- * @param \Seberm\Components\PayPal\Buttons\IOrderFactory $orderFactory
- */
-public function injectOrderFactory(\Seberm\Components\PayPal\Buttons\IOrderFactory $orderFactory)
-{
-	$this->orderFactory = $orderFactory;
-}
+    // Will be called after money transfer
+    $control->onSuccessPayment[] = [$this, 'success'];
 
-public function startup()
-{
-	parent::startup();
+    // All prices are represents Euros
+    $control->setCurrencyCode(API::CURRENCY_EURO);
 
-	$this->orderButton = $this->orderFactory->create();
-	$this->orderButton->setSessionSection($this->session->getSection('paypal'));
-	$this->orderButton->onSuccessPayment[] = \Nette\Callback::create($this, 'processPayment');
-}
+    // Lets add item to cart!
+    $control->addItemToCart('Refrigerator', 'Best refrigerator ever made!', 200);
 
-/**
- * @return Seberm\Components\PayPal\Buttons\Order
- */
-protected function createComponentPaypalButton()
-{
+    return $control;
+  }
 
-	$control = $this->orderButton;
-	$control->setCurrencyCode(\Seberm\PayPal\API\API::CURRENCY_EURO);
-	$control->onConfirmation[] = \Nette\Callback::create($this, 'confirmOrder');
-	$control->onError[] = \Nette\Callback::create($this, 'errorOccurred');
+  public function confirmed(Response $response)
+  {
+    dump($response);
 
-	//$tourModel is instance of PRODUCT
-	$control->addItemToCart(
-		$tourModel['name'], \Nette\Utils\Strings::substring($tourModel['desc'], 0, 25), $tourModel['price']
-	);
+    // IMPORTANT! You have to confirm payment to process it
+    $this['paypal']->confirmExpressCheckout();
+  }
 
-	return $control;
-}
+  public function success($responseData)
+  {
+    dump("Payment successfully processed! Seller has money on his Paypal account :)");
+  }
 
 ```
